@@ -155,6 +155,83 @@ class GeminiService {
 
     return await this.generateContent(prompt);
   }
+
+  async analyzeDocument(fileData, fileName) {
+    try {
+      await this.initialize();
+      
+      // Convert ArrayBuffer to base64 for Firebase AI Logic
+      const base64Data = btoa(String.fromCharCode(...new Uint8Array(fileData)));
+      
+      const prompt = `
+      Analyze this document (${fileName}) and extract all relevant resume information.
+      
+      Please extract:
+      1. Personal information (name, contact details, location)
+      2. Professional summary/objective
+      3. Work experience (company, position, dates, responsibilities, achievements)
+      4. Education (institution, degree, dates, relevant coursework)
+      5. Skills (technical, soft skills, certifications)
+      6. Projects, publications, or other relevant information
+      
+      Format your response as structured JSON data that can be used to populate a resume form.
+      Be thorough and accurate in extracting all information.
+      `;
+
+      const result = await this.model.generateContent([
+        prompt,
+        {
+          inlineData: {
+            mimeType: 'application/pdf',
+            data: base64Data
+          }
+        }
+      ]);
+      
+      return result.response.text();
+    } catch (error) {
+      console.error('Error analyzing document:', error);
+      throw error;
+    }
+  }
+
+  async analyzeImage(fileData, fileName) {
+    try {
+      await this.initialize();
+      
+      // Extract base64 data from data URL
+      const base64Data = fileData.split(',')[1];
+      
+      const prompt = `
+      Analyze this image (${fileName}) and extract any resume or professional information visible.
+      
+      Look for:
+      1. Text content (names, contact info, job titles, skills)
+      2. Layout and structure information
+      3. Any professional details that could be relevant for a resume
+      
+      If this appears to be a resume or professional document, extract all readable information.
+      If it's not a resume, describe what you see and suggest how it might be relevant.
+      
+      Format your response as structured information that could be used for resume building.
+      `;
+
+      const result = await this.model.generateContent([
+        prompt,
+        {
+          inlineData: {
+            mimeType: 'image/jpeg', // Default to JPEG, could be enhanced to detect actual type
+            data: base64Data
+          }
+        }
+      ]);
+      
+      return result.response.text();
+    } catch (error) {
+      console.error('Error analyzing image:', error);
+      throw error;
+    }
+  }
 }
 
 export default new GeminiService();
