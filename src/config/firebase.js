@@ -4,7 +4,6 @@ import { getAuth, connectAuthEmulator } from 'firebase/auth';
 import { getStorage, connectStorageEmulator } from 'firebase/storage';
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 import { getAnalytics } from 'firebase/analytics';
-import { getAI, GoogleAIBackend } from 'firebase/ai';
 
 const firebaseConfig = {
   apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
@@ -24,9 +23,6 @@ export const db = getFirestore(app);
 export const auth = getAuth(app);
 export const storage = getStorage(app);
 export const functions = getFunctions(app);
-
-// Initialize Firebase AI Logic
-export const ai = getAI(app, { backend: new GoogleAIBackend() });
 
 // Initialize Analytics (only in production)
 export const analytics = typeof window !== 'undefined' && process.env.NODE_ENV === 'production' 
