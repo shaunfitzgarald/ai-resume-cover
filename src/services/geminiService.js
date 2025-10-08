@@ -21,45 +21,11 @@ class GeminiService {
       }
       console.log('Gemini API key found, length:', process.env.REACT_APP_GEMINI_API_KEY.length);
 
-      // Try Firebase AI Logic first, fallback to direct API
-      try {
-        // Initialize Firebase app if not already done
-        const firebaseConfig = {
-          apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
-          authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
-          projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
-          storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
-          messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
-          appId: process.env.REACT_APP_FIREBASE_APP_ID,
-          measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const ai = getAI(app, { 
-          backend: new GoogleAIBackend({
-            apiKey: process.env.REACT_APP_GEMINI_API_KEY
-          })
-        });
-
-        // Initialize the generative model using Firebase AI Logic
-        this.model = getGenerativeModel(ai, { 
-          model: "gemini-2.5-flash",
-          generationConfig: {
-            temperature: 0.7,
-            topK: 40,
-            topP: 0.95,
-            maxOutputTokens: 1024,
-          }
-        });
-
-        this.useDirectAPI = false;
-        console.log('Firebase AI Logic initialized successfully');
-      } catch (firebaseError) {
-        console.warn('Firebase AI Logic initialization failed, falling back to direct API:', firebaseError.message);
-        this.useDirectAPI = true;
-        this.apiKey = process.env.REACT_APP_GEMINI_API_KEY;
-        this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
-      }
+      // Use direct API for now (skip Firebase AI Logic)
+      console.log('Using direct Gemini API (skipping Firebase AI Logic)');
+      this.useDirectAPI = true;
+      this.apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+      this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
 
       this.initialized = true;
     } catch (error) {
@@ -72,13 +38,7 @@ class GeminiService {
     try {
       await this.initialize();
       
-      if (this.useDirectAPI) {
-        return await this.generateContentDirect(prompt);
-      } else {
-        const result = await this.model.generateContent(prompt);
-        const response = result.response;
-        return response.text();
-      }
+      return await this.generateContentDirect(prompt);
     } catch (error) {
       console.error('Error calling Gemini API:', error);
       throw error;
@@ -244,30 +204,7 @@ class GeminiService {
 
       console.log('Sending document to AI for analysis...');
       
-      if (this.useDirectAPI) {
-        return await this.analyzeDocumentDirect(prompt, base64Data, fileName);
-      } else {
-        try {
-          const result = await this.model.generateContent([
-            prompt,
-            {
-              inlineData: {
-                mimeType: 'application/pdf',
-                data: base64Data
-              }
-            }
-          ]);
-          
-          console.log('Document analysis completed successfully');
-          return result.response.text();
-        } catch (firebaseError) {
-          console.warn('Firebase AI Logic failed during document analysis, falling back to direct API:', firebaseError.message);
-          this.useDirectAPI = true;
-          this.apiKey = process.env.REACT_APP_GEMINI_API_KEY;
-          this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
-          return await this.analyzeDocumentDirect(prompt, base64Data, fileName);
-        }
-      }
+      return await this.analyzeDocumentDirect(prompt, base64Data, fileName);
     } catch (error) {
       console.error('Error analyzing document:', error);
       console.error('Error details:', {
@@ -341,29 +278,7 @@ class GeminiService {
       Format your response as structured information that could be used for resume building.
       `;
 
-      if (this.useDirectAPI) {
-        return await this.analyzeImageDirect(prompt, base64Data, fileName);
-      } else {
-        try {
-          const result = await this.model.generateContent([
-            prompt,
-            {
-              inlineData: {
-                mimeType: 'image/jpeg', // Default to JPEG, could be enhanced to detect actual type
-                data: base64Data
-              }
-            }
-          ]);
-          
-          return result.response.text();
-        } catch (firebaseError) {
-          console.warn('Firebase AI Logic failed during image analysis, falling back to direct API:', firebaseError.message);
-          this.useDirectAPI = true;
-          this.apiKey = process.env.REACT_APP_GEMINI_API_KEY;
-          this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
-          return await this.analyzeImageDirect(prompt, base64Data, fileName);
-        }
-      }
+      return await this.analyzeImageDirect(prompt, base64Data, fileName);
     } catch (error) {
       console.error('Error analyzing image:', error);
       throw error;
