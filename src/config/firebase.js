@@ -30,7 +30,7 @@ export const analytics = typeof window !== 'undefined' && process.env.NODE_ENV =
   : null;
 
 // Connect to emulators in development
-if (process.env.NODE_ENV === 'development' && !auth._delegate._config?.emulator) {
+if (process.env.NODE_ENV === 'development') {
   try {
     // Uncomment these lines if you want to use Firebase emulators for local development
     // connectAuthEmulator(auth, 'http://localhost:9099');
