@@ -13,6 +13,11 @@ class GeminiService {
     if (this.initialized) return;
 
     try {
+      // Check if Gemini API key is available
+      if (!process.env.REACT_APP_GEMINI_API_KEY) {
+        throw new Error('Gemini API key is not configured. Please add REACT_APP_GEMINI_API_KEY to your .env file.');
+      }
+
       // Initialize Firebase app if not already done
       const firebaseConfig = {
         apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
@@ -25,7 +30,11 @@ class GeminiService {
       };
 
       const app = initializeApp(firebaseConfig);
-      const ai = getAI(app, { backend: new GoogleAIBackend() });
+      const ai = getAI(app, { 
+        backend: new GoogleAIBackend({
+          apiKey: process.env.REACT_APP_GEMINI_API_KEY
+        })
+      });
 
       // Initialize the generative model using Firebase AI Logic
       this.model = getGenerativeModel(ai, { 
