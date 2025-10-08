@@ -77,6 +77,17 @@ const ResumeBuilder = ({ userData, setUserData }) => {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const { user } = useAuth();
 
+  // Auto-save functionality
+  useEffect(() => {
+    if (hasUnsavedChanges && user) {
+      const autoSaveTimer = setTimeout(() => {
+        handleAutoSave();
+      }, 5000); // Auto-save after 5 seconds of inactivity
+
+      return () => clearTimeout(autoSaveTimer);
+    }
+  }, [resumeData, hasUnsavedChanges, user]);
+
   // Show message if not authenticated (shouldn't happen due to ProtectedRoute, but just in case)
   if (!user) {
     return (
@@ -90,17 +101,6 @@ const ResumeBuilder = ({ userData, setUserData }) => {
       </Box>
     );
   }
-
-  // Auto-save functionality
-  useEffect(() => {
-    if (hasUnsavedChanges && user) {
-      const autoSaveTimer = setTimeout(() => {
-        handleAutoSave();
-      }, 5000); // Auto-save after 5 seconds of inactivity
-
-      return () => clearTimeout(autoSaveTimer);
-    }
-  }, [resumeData, hasUnsavedChanges, user]);
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
