@@ -227,8 +227,7 @@ const ResumeBuilder = ({ userData, setUserData }) => {
     try {
       // Process uploaded files
       for (const file of files) {
-        const text = await extractTextFromFile(file);
-        await processInput(text);
+        await processFile(file);
       }
     } catch (error) {
       console.error('Error processing files:', error);
@@ -241,14 +240,70 @@ const ResumeBuilder = ({ userData, setUserData }) => {
     }
   };
 
-  const extractTextFromFile = async (file) => {
-    // This would integrate with a PDF/text extraction service
-    // For now, we'll simulate it
-    return new Promise((resolve) => {
+  const processFile = async (file) => {
+    try {
+      if (file.type === 'application/pdf') {
+        // Process PDF using Firebase AI Logic
+        await processPDFFile(file);
+      } else if (file.type.startsWith('image/')) {
+        // Process image using Firebase AI Logic
+        await processImageFile(file);
+      } else {
+        // Process text files
+        const text = await extractTextFromFile(file);
+        await processInput(text);
+      }
+    } catch (error) {
+      console.error('Error processing file:', error);
+      throw error;
+    }
+  };
+
+  const processPDFFile = async (file) => {
+    try {
+      const fileData = await readFileAsArrayBuffer(file);
+      const result = await geminiService.analyzeDocument(fileData, file.name);
+      await processInput(result);
+    } catch (error) {
+      console.error('Error processing PDF:', error);
+      throw error;
+    }
+  };
+
+  const processImageFile = async (file) => {
+    try {
+      const fileData = await readFileAsDataURL(file);
+      const result = await geminiService.analyzeImage(fileData, file.name);
+      await processInput(result);
+    } catch (error) {
+      console.error('Error processing image:', error);
+      throw error;
+    }
+  };
+
+  const readFileAsArrayBuffer = (file) => {
+    return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = (e) => {
-        resolve(e.target.result);
-      };
+      reader.onload = (e) => resolve(e.target.result);
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsArrayBuffer(file);
+    });
+  };
+
+  const readFileAsDataURL = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target.result);
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const extractTextFromFile = async (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target.result);
+      reader.onerror = () => reject(new Error('Failed to read file'));
       reader.readAsText(file);
     });
   };
