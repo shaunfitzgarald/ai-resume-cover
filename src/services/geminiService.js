@@ -1,40 +1,28 @@
-// Gemini AI Service for processing user inputs and generating content
+import { getGenerativeModel } from 'firebase/ai';
+import { ai } from '../config/firebase';
+
+// Firebase AI Logic Service for processing user inputs and generating content
 class GeminiService {
   constructor() {
-    this.apiKey = process.env.REACT_APP_GEMINI_API_KEY;
-    this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
+    // Initialize the generative model using Firebase AI Logic
+    this.model = getGenerativeModel(ai, { 
+      model: "gemini-2.5-flash",
+      generationConfig: {
+        temperature: 0.7,
+        topK: 40,
+        topP: 0.95,
+        maxOutputTokens: 1024,
+      }
+    });
   }
 
   async generateContent(prompt, userData = {}) {
     try {
-      const response = await fetch(`${this.baseUrl}?key=${this.apiKey}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: prompt
-            }]
-          }],
-          generationConfig: {
-            temperature: 0.7,
-            topK: 40,
-            topP: 0.95,
-            maxOutputTokens: 1024,
-          }
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Gemini API error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data.candidates[0].content.parts[0].text;
+      const result = await this.model.generateContent(prompt);
+      const response = result.response;
+      return response.text();
     } catch (error) {
-      console.error('Error calling Gemini API:', error);
+      console.error('Error calling Firebase AI Logic:', error);
       throw error;
     }
   }
