@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -13,7 +13,12 @@ import {
   IconButton,
   Chip,
   Alert,
-  CircularProgress
+  CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Snackbar
 } from '@mui/material';
 import {
   CloudUpload,
@@ -22,13 +27,19 @@ import {
   Send,
   Preview,
   Download,
-  Refresh
+  Refresh,
+  Save,
+  FolderOpen,
+  Add
 } from '@mui/icons-material';
+import { useAuth } from '../contexts/AuthContext';
 import geminiService from '../services/geminiService';
+import databaseService from '../services/databaseService';
 import FileUpload from './FileUpload';
 import ChatInterface from './ChatInterface';
 import ResumePreview from './ResumePreview';
 import ResumeForm from './ResumeForm';
+import ResumeManager from './ResumeManager';
 
 const ResumeBuilder = ({ userData, setUserData }) => {
   const [activeTab, setActiveTab] = useState(0);
@@ -57,9 +68,144 @@ const ResumeBuilder = ({ userData, setUserData }) => {
   ]);
   const [selectedTemplate, setSelectedTemplate] = useState('professional');
   const [showPreview, setShowPreview] = useState(false);
+  const [currentResumeId, setCurrentResumeId] = useState(null);
+  const [resumeName, setResumeName] = useState('Untitled Resume');
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [managerDialogOpen, setManagerDialogOpen] = useState(false);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const { user } = useAuth();
+
+  // Auto-save functionality
+  useEffect(() => {
+    if (hasUnsavedChanges && user) {
+      const autoSaveTimer = setTimeout(() => {
+        handleAutoSave();
+      }, 5000); // Auto-save after 5 seconds of inactivity
+
+      return () => clearTimeout(autoSaveTimer);
+    }
+  }, [resumeData, hasUnsavedChanges, user]);
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
+  };
+
+  const handleResumeDataChange = (newData) => {
+    setResumeData(newData);
+    setHasUnsavedChanges(true);
+  };
+
+  const handleAutoSave = async () => {
+    if (!user || !hasUnsavedChanges) return;
+
+    try {
+      await databaseService.saveResume(user.uid, {
+        ...resumeData,
+        name: resumeName,
+        template: selectedTemplate,
+        lastModified: new Date().toISOString()
+      }, currentResumeId);
+      
+      setHasUnsavedChanges(false);
+      setSnackbarMessage('Auto-saved');
+      setSnackbarOpen(true);
+    } catch (error) {
+      console.error('Auto-save failed:', error);
+    }
+  };
+
+  const handleSaveResume = async () => {
+    if (!user) {
+      setSnackbarMessage('Please sign in to save resumes');
+      setSnackbarOpen(true);
+      return;
+    }
+
+    try {
+      setIsProcessing(true);
+      const resumeId = await databaseService.saveResume(user.uid, {
+        ...resumeData,
+        name: resumeName,
+        template: selectedTemplate,
+        lastModified: new Date().toISOString()
+      }, currentResumeId);
+      
+      setCurrentResumeId(resumeId);
+      setHasUnsavedChanges(false);
+      setSnackbarMessage('Resume saved successfully!');
+      setSnackbarOpen(true);
+    } catch (error) {
+      console.error('Error saving resume:', error);
+      setSnackbarMessage('Failed to save resume');
+      setSnackbarOpen(true);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleLoadResume = (resume) => {
+    setResumeData({
+      personalInfo: resume.personalInfo || {},
+      summary: resume.summary || '',
+      experience: resume.experience || [],
+      education: resume.education || [],
+      skills: resume.skills || [],
+      certifications: resume.certifications || [],
+      projects: resume.projects || []
+    });
+    setResumeName(resume.name || 'Untitled Resume');
+    setSelectedTemplate(resume.template || 'professional');
+    setCurrentResumeId(resume.id);
+    setHasUnsavedChanges(false);
+    setManagerDialogOpen(false);
+    setActiveTab(1); // Switch to Form tab
+    setSnackbarMessage('Resume loaded successfully!');
+    setSnackbarOpen(true);
+  };
+
+  const handleNewResume = () => {
+    setResumeData({
+      personalInfo: {
+        name: '',
+        email: '',
+        phone: '',
+        location: '',
+        linkedin: '',
+        portfolio: ''
+      },
+      summary: '',
+      experience: [],
+      education: [],
+      skills: [],
+      certifications: [],
+      projects: []
+    });
+    setResumeName('Untitled Resume');
+    setSelectedTemplate('professional');
+    setCurrentResumeId(null);
+    setHasUnsavedChanges(false);
+    setManagerDialogOpen(false);
+    setActiveTab(0); // Switch to Input tab
+  };
+
+  const handleDuplicateResume = (resume) => {
+    setResumeData({
+      personalInfo: resume.personalInfo || {},
+      summary: resume.summary || '',
+      experience: resume.experience || [],
+      education: resume.education || [],
+      skills: resume.skills || [],
+      certifications: resume.certifications || [],
+      projects: resume.projects || []
+    });
+    setResumeName(`${resume.name} (Copy)`);
+    setSelectedTemplate(resume.template || 'professional');
+    setCurrentResumeId(null); // New resume
+    setHasUnsavedChanges(true);
+    setManagerDialogOpen(false);
+    setActiveTab(1); // Switch to Form tab
   };
 
   const handleFileUpload = async (files) => {
@@ -155,6 +301,16 @@ const ResumeBuilder = ({ userData, setUserData }) => {
 
   const tabContent = [
     {
+      label: 'My Resumes',
+      content: (
+        <ResumeManager 
+          onSelectResume={handleLoadResume}
+          onNewResume={handleNewResume}
+          onEditResume={handleDuplicateResume}
+        />
+      )
+    },
+    {
       label: 'Input',
       content: (
         <Box>
@@ -211,7 +367,7 @@ const ResumeBuilder = ({ userData, setUserData }) => {
       content: (
         <ResumeForm 
           data={resumeData}
-          onChange={setResumeData}
+          onChange={handleResumeDataChange}
         />
       )
     },
@@ -296,9 +452,43 @@ const ResumeBuilder = ({ userData, setUserData }) => {
 
   return (
     <Box>
-      <Typography variant="h4" component="h1" gutterBottom>
-        Resume Builder
-      </Typography>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+        <Typography variant="h4" component="h1">
+          Resume Builder
+        </Typography>
+        <Box display="flex" gap={1} alignItems="center">
+          {currentResumeId && (
+            <Chip 
+              label={resumeName} 
+              color="primary" 
+              variant="outlined"
+              onDelete={() => setResumeName('Untitled Resume')}
+            />
+          )}
+          {hasUnsavedChanges && (
+            <Chip 
+              label="Unsaved changes" 
+              color="warning" 
+              size="small"
+            />
+          )}
+          <Button
+            variant="outlined"
+            startIcon={<FolderOpen />}
+            onClick={() => setManagerDialogOpen(true)}
+          >
+            My Resumes
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<Save />}
+            onClick={handleSaveResume}
+            disabled={isProcessing}
+          >
+            {isProcessing ? <CircularProgress size={20} /> : 'Save'}
+          </Button>
+        </Box>
+      </Box>
       
       <Paper sx={{ mb: 3 }}>
         <Tabs 
@@ -315,6 +505,61 @@ const ResumeBuilder = ({ userData, setUserData }) => {
       <Box sx={{ p: 2 }}>
         {tabContent[activeTab].content}
       </Box>
+
+      {/* Resume Manager Dialog */}
+      <Dialog 
+        open={managerDialogOpen} 
+        onClose={() => setManagerDialogOpen(false)}
+        maxWidth="lg"
+        fullWidth
+      >
+        <DialogTitle>My Resumes</DialogTitle>
+        <DialogContent>
+          <ResumeManager 
+            onSelectResume={handleLoadResume}
+            onNewResume={handleNewResume}
+            onEditResume={handleDuplicateResume}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setManagerDialogOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Save Dialog */}
+      <Dialog open={saveDialogOpen} onClose={() => setSaveDialogOpen(false)}>
+        <DialogTitle>Save Resume</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Resume Name"
+            fullWidth
+            variant="outlined"
+            value={resumeName}
+            onChange={(e) => setResumeName(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && handleSaveResume()}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSaveDialogOpen(false)}>Cancel</Button>
+          <Button 
+            onClick={handleSaveResume} 
+            variant="contained"
+            disabled={!resumeName.trim() || isProcessing}
+          >
+            {isProcessing ? <CircularProgress size={20} /> : 'Save'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={4000}
+        onClose={() => setSnackbarOpen(false)}
+        message={snackbarMessage}
+      />
 
       {isProcessing && (
         <Box 
