@@ -21,38 +21,49 @@ class GeminiService {
       }
       console.log('Gemini API key found, length:', process.env.REACT_APP_GEMINI_API_KEY.length);
 
-      // Initialize Firebase app if not already done
-      const firebaseConfig = {
-        apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
-        authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
-        projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
-        storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
-        messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
-        appId: process.env.REACT_APP_FIREBASE_APP_ID,
-        measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID
-      };
+      // Try Firebase AI Logic first, fallback to direct API
+      try {
+        // Initialize Firebase app if not already done
+        const firebaseConfig = {
+          apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+          authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+          projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+          storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+          messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+          appId: process.env.REACT_APP_FIREBASE_APP_ID,
+          measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID
+        };
 
-      const app = initializeApp(firebaseConfig);
-      const ai = getAI(app, { 
-        backend: new GoogleAIBackend({
-          apiKey: process.env.REACT_APP_GEMINI_API_KEY
-        })
-      });
+        const app = initializeApp(firebaseConfig);
+        const ai = getAI(app, { 
+          backend: new GoogleAIBackend({
+            apiKey: process.env.REACT_APP_GEMINI_API_KEY
+          })
+        });
 
-      // Initialize the generative model using Firebase AI Logic
-      this.model = getGenerativeModel(ai, { 
-        model: "gemini-2.5-flash",
-        generationConfig: {
-          temperature: 0.7,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 1024,
-        }
-      });
+        // Initialize the generative model using Firebase AI Logic
+        this.model = getGenerativeModel(ai, { 
+          model: "gemini-2.5-flash",
+          generationConfig: {
+            temperature: 0.7,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 1024,
+          }
+        });
+
+        this.useDirectAPI = false;
+        console.log('Firebase AI Logic initialized successfully');
+      } catch (firebaseError) {
+        console.warn('Firebase AI Logic failed, falling back to direct API:', firebaseError.message);
+        this.useDirectAPI = true;
+        this.apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+        this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+      }
 
       this.initialized = true;
     } catch (error) {
-      console.error('Error initializing Firebase AI Logic:', error);
+      console.error('Error initializing Gemini service:', error);
       throw error;
     }
   }
@@ -60,11 +71,50 @@ class GeminiService {
   async generateContent(prompt, userData = {}) {
     try {
       await this.initialize();
-      const result = await this.model.generateContent(prompt);
-      const response = result.response;
-      return response.text();
+      
+      if (this.useDirectAPI) {
+        return await this.generateContentDirect(prompt);
+      } else {
+        const result = await this.model.generateContent(prompt);
+        const response = result.response;
+        return response.text();
+      }
     } catch (error) {
-      console.error('Error calling Firebase AI Logic:', error);
+      console.error('Error calling Gemini API:', error);
+      throw error;
+    }
+  }
+
+  async generateContentDirect(prompt) {
+    try {
+      const response = await fetch(`${this.baseUrl}?key=${this.apiKey}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: prompt
+            }]
+          }],
+          generationConfig: {
+            temperature: 0.7,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 1024,
+          }
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Gemini API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.candidates[0].content.parts[0].text;
+    } catch (error) {
+      console.error('Error calling direct Gemini API:', error);
       throw error;
     }
   }
@@ -173,7 +223,7 @@ class GeminiService {
       console.log('Starting document analysis for:', fileName);
       await this.initialize();
       
-      // Convert ArrayBuffer to base64 for Firebase AI Logic
+      // Convert ArrayBuffer to base64
       const base64Data = btoa(String.fromCharCode(...new Uint8Array(fileData)));
       console.log('Document converted to base64, length:', base64Data.length);
       
@@ -193,18 +243,23 @@ class GeminiService {
       `;
 
       console.log('Sending document to AI for analysis...');
-      const result = await this.model.generateContent([
-        prompt,
-        {
-          inlineData: {
-            mimeType: 'application/pdf',
-            data: base64Data
-          }
-        }
-      ]);
       
-      console.log('Document analysis completed successfully');
-      return result.response.text();
+      if (this.useDirectAPI) {
+        return await this.analyzeDocumentDirect(prompt, base64Data, fileName);
+      } else {
+        const result = await this.model.generateContent([
+          prompt,
+          {
+            inlineData: {
+              mimeType: 'application/pdf',
+              data: base64Data
+            }
+          }
+        ]);
+        
+        console.log('Document analysis completed successfully');
+        return result.response.text();
+      }
     } catch (error) {
       console.error('Error analyzing document:', error);
       console.error('Error details:', {
@@ -212,6 +267,47 @@ class GeminiService {
         code: error.code,
         status: error.status
       });
+      throw error;
+    }
+  }
+
+  async analyzeDocumentDirect(prompt, base64Data, fileName) {
+    try {
+      const response = await fetch(`${this.baseUrl}?key=${this.apiKey}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { text: prompt },
+              {
+                inlineData: {
+                  mimeType: 'application/pdf',
+                  data: base64Data
+                }
+              }
+            ]
+          }],
+          generationConfig: {
+            temperature: 0.7,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 1024,
+          }
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Gemini API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Document analysis completed successfully');
+      return data.candidates[0].content.parts[0].text;
+    } catch (error) {
+      console.error('Error calling direct Gemini API for document:', error);
       throw error;
     }
   }
@@ -237,19 +333,63 @@ class GeminiService {
       Format your response as structured information that could be used for resume building.
       `;
 
-      const result = await this.model.generateContent([
-        prompt,
-        {
-          inlineData: {
-            mimeType: 'image/jpeg', // Default to JPEG, could be enhanced to detect actual type
-            data: base64Data
+      if (this.useDirectAPI) {
+        return await this.analyzeImageDirect(prompt, base64Data, fileName);
+      } else {
+        const result = await this.model.generateContent([
+          prompt,
+          {
+            inlineData: {
+              mimeType: 'image/jpeg', // Default to JPEG, could be enhanced to detect actual type
+              data: base64Data
+            }
           }
-        }
-      ]);
-      
-      return result.response.text();
+        ]);
+        
+        return result.response.text();
+      }
     } catch (error) {
       console.error('Error analyzing image:', error);
+      throw error;
+    }
+  }
+
+  async analyzeImageDirect(prompt, base64Data, fileName) {
+    try {
+      const response = await fetch(`${this.baseUrl}?key=${this.apiKey}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { text: prompt },
+              {
+                inlineData: {
+                  mimeType: 'image/jpeg',
+                  data: base64Data
+                }
+              }
+            ]
+          }],
+          generationConfig: {
+            temperature: 0.7,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 1024,
+          }
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Gemini API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.candidates[0].content.parts[0].text;
+    } catch (error) {
+      console.error('Error calling direct Gemini API for image:', error);
       throw error;
     }
   }
