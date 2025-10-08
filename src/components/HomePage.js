@@ -8,7 +8,8 @@ import {
   CardActions, 
   Button,
   Container,
-  Paper
+  Paper,
+  Alert
 } from '@mui/material';
 import { 
   Description, 
@@ -17,12 +18,16 @@ import {
   CloudUpload,
   Mic,
   Image,
-  Description as PdfIcon
+  Description as PdfIcon,
+  CheckCircle,
+  Person
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 const HomePage = ({ userData, setUserData }) => {
   const navigate = useNavigate();
+  const { user, userProfile } = useAuth();
 
   const features = [
     {
@@ -64,6 +69,23 @@ const HomePage = ({ userData, setUserData }) => {
 
   return (
     <Box>
+      {/* Welcome Section for Authenticated Users */}
+      {user && (
+        <Alert 
+          severity="success" 
+          icon={<CheckCircle />}
+          sx={{ mb: 3 }}
+        >
+          <Box display="flex" alignItems="center" gap={2}>
+            <Person />
+            <Typography variant="body1">
+              Welcome back, {userProfile?.displayName || user.email}! 
+              Ready to work on your resumes and cover letters?
+            </Typography>
+          </Box>
+        </Alert>
+      )}
+
       {/* Hero Section */}
       <Paper 
         elevation={3} 
@@ -80,7 +102,10 @@ const HomePage = ({ userData, setUserData }) => {
             AI Resume & Cover Letter Builder
           </Typography>
           <Typography variant="h5" align="center" sx={{ mb: 4, opacity: 0.9 }}>
-            Create stunning, professional documents with the power of AI
+            {user 
+              ? 'Continue building your professional documents with AI assistance'
+              : 'Create stunning, professional documents with the power of AI'
+            }
           </Typography>
           <Box display="flex" justifyContent="center" gap={2}>
             <Button 
@@ -93,7 +118,7 @@ const HomePage = ({ userData, setUserData }) => {
                 '&:hover': { bgcolor: 'grey.100' }
               }}
             >
-              Build Resume
+              {user ? 'My Resumes' : 'Build Resume'}
             </Button>
             <Button 
               variant="outlined" 
@@ -105,7 +130,7 @@ const HomePage = ({ userData, setUserData }) => {
                 '&:hover': { borderColor: 'white', bgcolor: 'rgba(255,255,255,0.1)' }
               }}
             >
-              Write Cover Letter
+              {user ? 'My Cover Letters' : 'Write Cover Letter'}
             </Button>
           </Box>
         </Container>

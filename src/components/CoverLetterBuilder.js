@@ -19,6 +19,7 @@ import {
   Download,
   Refresh
 } from '@mui/icons-material';
+import { useAuth } from '../contexts/AuthContext';
 import geminiService from '../services/geminiService';
 import FileUpload from './FileUpload';
 import ChatInterface from './ChatInterface';
@@ -58,6 +59,21 @@ const CoverLetterBuilder = ({ userData, setUserData }) => {
   ]);
   const [selectedTemplate, setSelectedTemplate] = useState('professional');
   const [showPreview, setShowPreview] = useState(false);
+  const { user } = useAuth();
+
+  // Show message if not authenticated
+  if (!user) {
+    return (
+      <Box sx={{ textAlign: 'center', mt: 8 }}>
+        <Typography variant="h5" gutterBottom>
+          Please sign in to access the Cover Letter Builder
+        </Typography>
+        <Typography variant="body1" color="text.secondary">
+          You need to be signed in to create and manage cover letters.
+        </Typography>
+      </Box>
+    );
+  }
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
