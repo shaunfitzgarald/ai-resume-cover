@@ -25,7 +25,7 @@ class GeminiService {
       console.log('Using direct Gemini API (skipping Firebase AI Logic)');
       this.useDirectAPI = true;
       this.apiKey = process.env.REACT_APP_GEMINI_API_KEY;
-      this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+      this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
 
       this.initialized = true;
     } catch (error) {
