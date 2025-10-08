@@ -9,7 +9,7 @@
     "@mui/material": "^5.14.20",
     "@mui/x-date-pickers": "^6.18.1",
     "ajv": "^8.17.1",
-    "firebase": "^10.14.1",
+    "firebase": "^12.3.0",
     "jspdf": "^2.5.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
