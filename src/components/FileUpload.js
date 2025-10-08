@@ -70,7 +70,8 @@ const FileUpload = ({ onUpload, accept, multiple = false, maxSize = 10 }) => {
           if (prev >= 100) {
             clearInterval(progressInterval);
             setUploading(false);
-            onUpload(fileArray);
+            // Use setTimeout to avoid setState during render
+            setTimeout(() => onUpload(fileArray), 0);
             return 100;
           }
           return prev + 10;

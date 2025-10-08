@@ -55,7 +55,7 @@ class GeminiService {
         this.useDirectAPI = false;
         console.log('Firebase AI Logic initialized successfully');
       } catch (firebaseError) {
-        console.warn('Firebase AI Logic failed, falling back to direct API:', firebaseError.message);
+        console.warn('Firebase AI Logic initialization failed, falling back to direct API:', firebaseError.message);
         this.useDirectAPI = true;
         this.apiKey = process.env.REACT_APP_GEMINI_API_KEY;
         this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
@@ -247,18 +247,26 @@ class GeminiService {
       if (this.useDirectAPI) {
         return await this.analyzeDocumentDirect(prompt, base64Data, fileName);
       } else {
-        const result = await this.model.generateContent([
-          prompt,
-          {
-            inlineData: {
-              mimeType: 'application/pdf',
-              data: base64Data
+        try {
+          const result = await this.model.generateContent([
+            prompt,
+            {
+              inlineData: {
+                mimeType: 'application/pdf',
+                data: base64Data
+              }
             }
-          }
-        ]);
-        
-        console.log('Document analysis completed successfully');
-        return result.response.text();
+          ]);
+          
+          console.log('Document analysis completed successfully');
+          return result.response.text();
+        } catch (firebaseError) {
+          console.warn('Firebase AI Logic failed during document analysis, falling back to direct API:', firebaseError.message);
+          this.useDirectAPI = true;
+          this.apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+          this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+          return await this.analyzeDocumentDirect(prompt, base64Data, fileName);
+        }
       }
     } catch (error) {
       console.error('Error analyzing document:', error);
@@ -336,17 +344,25 @@ class GeminiService {
       if (this.useDirectAPI) {
         return await this.analyzeImageDirect(prompt, base64Data, fileName);
       } else {
-        const result = await this.model.generateContent([
-          prompt,
-          {
-            inlineData: {
-              mimeType: 'image/jpeg', // Default to JPEG, could be enhanced to detect actual type
-              data: base64Data
+        try {
+          const result = await this.model.generateContent([
+            prompt,
+            {
+              inlineData: {
+                mimeType: 'image/jpeg', // Default to JPEG, could be enhanced to detect actual type
+                data: base64Data
+              }
             }
-          }
-        ]);
-        
-        return result.response.text();
+          ]);
+          
+          return result.response.text();
+        } catch (firebaseError) {
+          console.warn('Firebase AI Logic failed during image analysis, falling back to direct API:', firebaseError.message);
+          this.useDirectAPI = true;
+          this.apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+          this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+          return await this.analyzeImageDirect(prompt, base64Data, fileName);
+        }
       }
     } catch (error) {
       console.error('Error analyzing image:', error);
