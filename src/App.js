@@ -7,6 +7,8 @@ import HomePage from './components/HomePage';
 import ResumeBuilder from './components/ResumeBuilder';
 import CoverLetterBuilder from './components/CoverLetterBuilder';
 import AuthModal from './components/AuthModal';
+import ProtectedRoute from './components/ProtectedRoute';
+import AuthRequired from './components/AuthRequired';
 import './App.css';
 
 function AppContent() {
@@ -99,8 +101,23 @@ function AppContent() {
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
         <Routes>
           <Route path="/" element={<HomePage userData={userData} setUserData={setUserData} />} />
-          <Route path="/resume" element={<ResumeBuilder userData={userData} setUserData={setUserData} />} />
-          <Route path="/cover-letter" element={<CoverLetterBuilder userData={userData} setUserData={setUserData} />} />
+          <Route path="/auth-required" element={<AuthRequired />} />
+          <Route 
+            path="/resume" 
+            element={
+              <ProtectedRoute>
+                <ResumeBuilder userData={userData} setUserData={setUserData} />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/cover-letter" 
+            element={
+              <ProtectedRoute>
+                <CoverLetterBuilder userData={userData} setUserData={setUserData} />
+              </ProtectedRoute>
+            } 
+          />
         </Routes>
       </Container>
 

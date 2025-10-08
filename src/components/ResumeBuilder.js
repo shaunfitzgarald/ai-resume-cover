@@ -77,6 +77,20 @@ const ResumeBuilder = ({ userData, setUserData }) => {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const { user } = useAuth();
 
+  // Show message if not authenticated (shouldn't happen due to ProtectedRoute, but just in case)
+  if (!user) {
+    return (
+      <Box sx={{ textAlign: 'center', mt: 8 }}>
+        <Typography variant="h5" gutterBottom>
+          Please sign in to access the Resume Builder
+        </Typography>
+        <Typography variant="body1" color="text.secondary">
+          You need to be signed in to create and manage resumes.
+        </Typography>
+      </Box>
+    );
+  }
+
   // Auto-save functionality
   useEffect(() => {
     if (hasUnsavedChanges && user) {
