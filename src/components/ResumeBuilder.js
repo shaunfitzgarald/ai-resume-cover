@@ -261,11 +261,20 @@ const ResumeBuilder = ({ userData, setUserData }) => {
 
   const processPDFFile = async (file) => {
     try {
+      console.log('Processing PDF file:', file.name, 'Size:', file.size);
       const fileData = await readFileAsArrayBuffer(file);
+      console.log('File read as ArrayBuffer, size:', fileData.byteLength);
+      
       const result = await geminiService.analyzeDocument(fileData, file.name);
+      console.log('AI analysis result:', result);
+      
       await processInput(result);
     } catch (error) {
       console.error('Error processing PDF:', error);
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack
+      });
       throw error;
     }
   };

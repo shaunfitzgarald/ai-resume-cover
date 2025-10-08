@@ -14,9 +14,12 @@ class GeminiService {
 
     try {
       // Check if Gemini API key is available
+      console.log('Checking for Gemini API key...');
       if (!process.env.REACT_APP_GEMINI_API_KEY) {
+        console.error('Gemini API key not found in environment variables');
         throw new Error('Gemini API key is not configured. Please add REACT_APP_GEMINI_API_KEY to your .env file.');
       }
+      console.log('Gemini API key found, length:', process.env.REACT_APP_GEMINI_API_KEY.length);
 
       // Initialize Firebase app if not already done
       const firebaseConfig = {
@@ -167,10 +170,12 @@ class GeminiService {
 
   async analyzeDocument(fileData, fileName) {
     try {
+      console.log('Starting document analysis for:', fileName);
       await this.initialize();
       
       // Convert ArrayBuffer to base64 for Firebase AI Logic
       const base64Data = btoa(String.fromCharCode(...new Uint8Array(fileData)));
+      console.log('Document converted to base64, length:', base64Data.length);
       
       const prompt = `
       Analyze this document (${fileName}) and extract all relevant resume information.
@@ -187,6 +192,7 @@ class GeminiService {
       Be thorough and accurate in extracting all information.
       `;
 
+      console.log('Sending document to AI for analysis...');
       const result = await this.model.generateContent([
         prompt,
         {
@@ -197,9 +203,15 @@ class GeminiService {
         }
       ]);
       
+      console.log('Document analysis completed successfully');
       return result.response.text();
     } catch (error) {
       console.error('Error analyzing document:', error);
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        status: error.status
+      });
       throw error;
     }
   }
